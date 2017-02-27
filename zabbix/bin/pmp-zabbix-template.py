@@ -455,7 +455,7 @@ elif output == 'xml-lld':
     query_counters_rule = discovery_rule('MySQL Instances with query counters', 'instances')
     query_counters_rule['item_prototypes'] = {'item_prototype': query_counter_items}
 
-    wsrep_rule = discovery_rule('MySQL Gallera instances', 'instances')
+    wsrep_rule = discovery_rule('MySQL Galera instances', 'instances')
     wsrep_rule['item_prototypes'] = {'item_prototype': wsrep_items}
 
     tmpl['discovery_rules'] = {'discovery_rule': [instances_rule,
