@@ -86,8 +86,8 @@ trigger_severities = {'Not_classified ': 0,
 
 # Parse args
 usage = """
-    -h, --help                    Prints this menu and exits
-    -o, --output [xml|config]     Type of the output, default - xml.
+    -h, --help                        Prints this menu and exits
+    -o, --output [xml|config|xml-lld] Type of the output, default - xml. Xml-lld is for low-level item discovery
 """
 try:
     opts, args = getopt.getopt(sys.argv[1:], "ho:v", ["help", "output="])
@@ -105,7 +105,7 @@ for o, a in opts:
         sys.exit()
     elif o in ("-o", "--output"):
         output = a
-        if output not in ['xml', 'config']:
+        if output not in ['xml', 'config', 'xml-lld']:
             sys.stderr.write('invalid output type\n%s' % usage)
             sys.exit(2)
     else:
@@ -139,6 +139,55 @@ tmpl['templates'] = {'template': {'template': tmpl_name,
                                   'macros': ''}}
 tmpl['graphs'] = {'graph': []}
 tmpl['triggers'] = ''
+
+def index_items_by_category(items):
+    return {'common': [],
+            'slave': [],
+            'query_counter': [],
+            'wsrep': []}
+
+def convert_items_to_prototypes(item):
+    return item
+
+def discovery_rule_filter():
+    return {'evaltype': 0,
+            'formula': '',
+            'conditions': {}}
+
+def discovery_rule(name, key, rule={}):
+    result = {'name': name,
+              'type': '0',
+              'snmp_community': '',
+              'snmp_oid': '',
+              'key': key,
+              'delay': '10',
+              'status': '0',
+              'allowed_hosts': '',
+              'snmpv3_contextname': '',
+              'snmpv3_securityname': '',
+              'snmpv3_securitylevel': '0',
+              'snmpv3_authprotocol': '0',
+              'snmpv3_authpassphrase': '',
+              'snmpv3_privprotocol': '0',
+              'snmpv3_privpassphrase': '',
+              'delay_flex': '',
+              'params': '',
+              'ipmi_sensor': '',
+              'authtype': '0',
+              'username': '',
+              'password': '',
+              'publickey': '',
+              'privatekey': '',
+              'port': '',
+              'filter': discovery_rule_filter(),
+              'lifetime': '1',
+              'description': '',
+              'item_prototypes': {},
+              'trigger_prototypes': {},
+              'graph_prototypes': {},
+              'host_prototypes': {}}
+    result.update(rule)
+    return result
 
 def format_item(f_item):
     """Underscore makes an agent to throw away the support for item
@@ -363,6 +412,32 @@ if output == 'xml':
                                  'expression': exp}
                 z_trigger['dependencies']['dependency'].append(z_trigger_dep)
         tmpl['triggers']['trigger'].append(z_trigger)
+
+    # Convert and write XML
+    xml = dict2xml.Converter(wrap='zabbix_export', indent='  ').build(tmpl)
+    print '<?xml version="1.0" encoding="UTF-8"?>\n%s' % xml
+
+elif output == 'xml-lld':
+    items = tmpl['templates']['template']['items']
+    items_by_category = index_items_by_category(items)
+
+    common_items = convert_items_to_prototypes(items_by_category['common'])
+    slave_items = convert_items_to_prototypes(items_by_category['slave'])
+    query_counter_items = convert_items_to_prototypes(items_by_category['query_counter'])
+    wsrep_items = convert_items_to_prototypes(items_by_category['wsrep'])
+
+    tmpl['templates']['template']['items'] = {}
+    tmpl['graphs'] = {}
+    tmpl['triggers'] = {}
+
+    instances_rule = discovery_rule('MySQL Instances', 'MySql.instances')
+    slaves_rule = discovery_rule('MySQL Slave instances', 'MySql.instances')
+    query_counters_rule = discovery_rule('MySQL Instances with query counters', 'MySql.instances')
+    wsrep_rule = discovery_rule('MySQL Gallera instances', 'MySql.instances')
+
+    tmpl['discovery_rules'] = {'discovery_rule': [instances_rule,
+                                                  slaves_rule,
+                                                  query_counters_rule]}
 
     # Convert and write XML
     xml = dict2xml.Converter(wrap='zabbix_export', indent='  ').build(tmpl)
