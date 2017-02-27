@@ -140,26 +140,41 @@ tmpl['templates'] = {'template': {'template': tmpl_name,
 tmpl['graphs'] = {'graph': []}
 tmpl['triggers'] = ''
 
-def index_items_by_category(items):
-    return {'common': [],
-            'slave': [],
-            'query_counter': [],
-            'wsrep': []}
 
-def convert_items_to_prototypes(item):
-    return item
+def filter_items_by_key_prefix(items, prefix_word):
+    prefix_re = re.compile(re.escape(format_item(prefix_word) + '-'), re.IGNORECASE)
+    return [item for item in items if prefix_re.match(item['key'])]
+
+
+def reject_items_by_key_prefixes(items, prefix_words):
+    alternatives = [re.escape(format_item(word) + '-') for word in prefix_words]
+    prefix_re = re.compile('|'.join(alternatives), re.IGNORECASE)
+    return [item for item in items if not prefix_re.match(item['key'])]
+
+
+def index_items_by_category(items):
+    return {'common': reject_items_by_key_prefixes(items, ['slave', 'query-time', 'wsrep']),
+            'slave': filter_items_by_key_prefix(items, 'slave'),
+            'query_counter': filter_items_by_key_prefix(items, 'query-time'),
+            'wsrep': filter_items_by_key_prefix(items, 'wsrep')}
+
+
+def convert_items_to_prototypes(items):
+    return items
+
 
 def discovery_rule_filter():
     return {'evaltype': 0,
             'formula': '',
             'conditions': {}}
 
+
 def discovery_rule(name, key, rule={}):
     result = {'name': name,
               'type': '0',
               'snmp_community': '',
               'snmp_oid': '',
-              'key': key,
+              'key': format_item(key),
               'delay': '10',
               'status': '0',
               'allowed_hosts': '',
@@ -188,6 +203,7 @@ def discovery_rule(name, key, rule={}):
               'host_prototypes': {}}
     result.update(rule)
     return result
+
 
 def format_item(f_item):
     """Underscore makes an agent to throw away the support for item
@@ -418,7 +434,7 @@ if output == 'xml':
     print '<?xml version="1.0" encoding="UTF-8"?>\n%s' % xml
 
 elif output == 'xml-lld':
-    items = tmpl['templates']['template']['items']
+    items = tmpl['templates']['template']['items']['item']
     items_by_category = index_items_by_category(items)
 
     common_items = convert_items_to_prototypes(items_by_category['common'])
@@ -430,10 +446,17 @@ elif output == 'xml-lld':
     tmpl['graphs'] = {}
     tmpl['triggers'] = {}
 
-    instances_rule = discovery_rule('MySQL Instances', 'MySql.instances')
-    slaves_rule = discovery_rule('MySQL Slave instances', 'MySql.instances')
-    query_counters_rule = discovery_rule('MySQL Instances with query counters', 'MySql.instances')
-    wsrep_rule = discovery_rule('MySQL Gallera instances', 'MySql.instances')
+    instances_rule = discovery_rule('MySQL Instances', 'instances')
+    instances_rule['item_prototypes'] = {'item_prototype': common_items}
+
+    slaves_rule = discovery_rule('MySQL Slave instances', 'instances')
+    slaves_rule['item_prototypes'] = {'item_prototype': slave_items}
+
+    query_counters_rule = discovery_rule('MySQL Instances with query counters', 'instances')
+    query_counters_rule['item_prototypes'] = {'item_prototype': query_counter_items}
+
+    wsrep_rule = discovery_rule('MySQL Gallera instances', 'instances')
+    wsrep_rule['item_prototypes'] = {'item_prototype': wsrep_items}
 
     tmpl['discovery_rules'] = {'discovery_rule': [instances_rule,
                                                   slaves_rule,
