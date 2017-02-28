@@ -141,6 +141,16 @@ tmpl['graphs'] = {'graph': []}
 tmpl['triggers'] = ''
 
 
+def remove_duplicate_keys(items):
+    already_found_keys = set()
+    result = []
+    for item in items:
+        if not item['key'] in already_found_keys:
+            already_found_keys.add(item['key'])
+            result.append(item)
+    return result
+
+
 def filter_items_by_key_prefix(items, prefix_word):
     prefix_re = re.compile(re.escape(format_item(prefix_word) + '-'), re.IGNORECASE)
     return [item for item in items if prefix_re.match(item['key'])]
@@ -435,6 +445,7 @@ if output == 'xml':
 
 elif output == 'xml-lld':
     items = tmpl['templates']['template']['items']['item']
+    items = remove_duplicate_keys(items)
     items_by_category = index_items_by_category(items)
 
     common_items = convert_items_to_prototypes(items_by_category['common'])
