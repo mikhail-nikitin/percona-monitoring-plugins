@@ -466,6 +466,7 @@ elif output == 'xml-lld':
     tmpl['templates']['template']['items'] = {}
     tmpl['graphs'] = {}
     tmpl['triggers'] = {}
+    tmpl['templates']['template']['screens'] = {}
 
     instances_rule = discovery_rule('MySQL Instances', 'instances[]')
     instances_rule['item_prototypes'] = {'item_prototype': common_items}
