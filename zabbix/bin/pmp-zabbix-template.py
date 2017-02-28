@@ -134,7 +134,7 @@ tmpl['templates'] = {'template': {'template': tmpl_name,
                                   'name': tmpl_name,
                                   'description': tmpl_name,
                                   'groups': tmpl['groups'],
-                                  'applications': {'application': {'name': app_name }},
+                                  'applications': {'application': {'name': app_name}},
                                   'items': {'item': []},
                                   'macros': ''}}
 tmpl['graphs'] = {'graph': []}
