@@ -183,13 +183,7 @@ def convert_single_item_to_trapper_prototype(item):
     return item
 
 
-def discovery_rule_filter():
-    return {'evaltype': 0,
-            'formula': '',
-            'conditions': {}}
-
-
-def discovery_rule(name, key, rule={}):
+def create_discovery_rule(name, key, rule={}):
     result = {'name': name,
               'type': '0',
               'snmp_community': '',
@@ -214,7 +208,9 @@ def discovery_rule(name, key, rule={}):
               'publickey': '',
               'privatekey': '',
               'port': '',
-              'filter': discovery_rule_filter(),
+              'filter': {'evaltype': 0,
+                         'formula': '',
+                         'conditions': {}},
               'lifetime': '1',
               'description': '',
               'item_prototypes': {},
@@ -473,16 +469,16 @@ elif output == 'xml-lld':
     tmpl['triggers'] = {}
     tmpl['templates']['template']['screens'] = {}
 
-    instances_rule = discovery_rule('MySQL Instances', 'instances[]')
+    instances_rule = create_discovery_rule('MySQL Instances', 'instances[]')
     instances_rule['item_prototypes'] = {'item_prototype': common_items}
 
-    slaves_rule = discovery_rule('MySQL Slave instances', 'instances[slaves]')
+    slaves_rule = create_discovery_rule('MySQL Slave instances', 'instances[slaves]')
     slaves_rule['item_prototypes'] = {'item_prototype': slave_items}
 
-    query_counters_rule = discovery_rule('MySQL Instances with query counter', 'instances[with_query_counter]')
+    query_counters_rule = create_discovery_rule('MySQL Instances with query counter', 'instances[with_query_counter]')
     query_counters_rule['item_prototypes'] = {'item_prototype': query_counter_items}
 
-    wsrep_rule = discovery_rule('MySQL Galera instances', 'instances[wsrep]')
+    wsrep_rule = create_discovery_rule('MySQL Galera instances', 'instances[wsrep]')
     wsrep_rule['item_prototypes'] = {'item_prototype': wsrep_items}
 
     tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': [instances_rule,
