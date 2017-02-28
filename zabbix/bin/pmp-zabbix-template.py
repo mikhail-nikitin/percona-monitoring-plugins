@@ -169,8 +169,18 @@ def index_items_by_category(items):
             'wsrep': filter_items_by_key_prefix(items, 'wsrep')}
 
 
-def convert_items_to_prototypes(items):
-    return items
+def convert_items_to_trapper_prototypes(items):
+    return [convert_single_item_to_trapper_prototype(item) for item in items]
+
+
+def convert_single_item_to_trapper_prototype(item):
+    item['type'] = item_types['Zabbix Trapper']
+    item['name'] += ' {#MYSQL_INSTANCE_NAME}'
+    item['key'] += '[{#MYSQL_INSTANCE}]'
+    item['delay'] = 0
+    item['data_type'] = item['value_type']
+    item['application_prototypes'] = {}
+    return item
 
 
 def discovery_rule_filter():
@@ -448,10 +458,10 @@ elif output == 'xml-lld':
     items = remove_duplicate_keys(items)
     items_by_category = index_items_by_category(items)
 
-    common_items = convert_items_to_prototypes(items_by_category['common'])
-    slave_items = convert_items_to_prototypes(items_by_category['slave'])
-    query_counter_items = convert_items_to_prototypes(items_by_category['query_counter'])
-    wsrep_items = convert_items_to_prototypes(items_by_category['wsrep'])
+    common_items = convert_items_to_trapper_prototypes(items_by_category['common'])
+    slave_items = convert_items_to_trapper_prototypes(items_by_category['slave'])
+    query_counter_items = convert_items_to_trapper_prototypes(items_by_category['query_counter'])
+    wsrep_items = convert_items_to_trapper_prototypes(items_by_category['wsrep'])
 
     tmpl['templates']['template']['items'] = {}
     tmpl['graphs'] = {}
