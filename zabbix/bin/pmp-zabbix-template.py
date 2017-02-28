@@ -479,9 +479,9 @@ elif output == 'xml-lld':
     wsrep_rule = discovery_rule('MySQL Galera instances', 'instances[wsrep]')
     wsrep_rule['item_prototypes'] = {'item_prototype': wsrep_items}
 
-    tmpl['discovery_rules'] = {'discovery_rule': [instances_rule,
-                                                  slaves_rule,
-                                                  query_counters_rule]}
+    tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': [instances_rule,
+                                                                           slaves_rule,
+                                                                           query_counters_rule]}
 
     # Convert and write XML
     xml = dict2xml.Converter(wrap='zabbix_export', indent='  ').build(tmpl)
