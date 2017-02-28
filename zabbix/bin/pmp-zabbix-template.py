@@ -467,16 +467,16 @@ elif output == 'xml-lld':
     tmpl['graphs'] = {}
     tmpl['triggers'] = {}
 
-    instances_rule = discovery_rule('MySQL Instances', 'instances')
+    instances_rule = discovery_rule('MySQL Instances', 'instances[]')
     instances_rule['item_prototypes'] = {'item_prototype': common_items}
 
-    slaves_rule = discovery_rule('MySQL Slave instances', 'instances')
+    slaves_rule = discovery_rule('MySQL Slave instances', 'instances[slaves]')
     slaves_rule['item_prototypes'] = {'item_prototype': slave_items}
 
-    query_counters_rule = discovery_rule('MySQL Instances with query counters', 'instances')
+    query_counters_rule = discovery_rule('MySQL Instances with query counter', 'instances[with_query_counter]')
     query_counters_rule['item_prototypes'] = {'item_prototype': query_counter_items}
 
-    wsrep_rule = discovery_rule('MySQL Galera instances', 'instances')
+    wsrep_rule = discovery_rule('MySQL Galera instances', 'instances[wsrep]')
     wsrep_rule['item_prototypes'] = {'item_prototype': wsrep_items}
 
     tmpl['discovery_rules'] = {'discovery_rule': [instances_rule,
