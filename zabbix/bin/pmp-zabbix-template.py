@@ -370,6 +370,13 @@ for graph in data['graphs']:
             tmpl['templates']['template']['items']['item'].append(z_item)
             all_item_keys.add(item)
 
+
+def print_xml(template_definition):
+    # Convert and write XML
+    xml = dict2xml.Converter(wrap='zabbix_export', indent='  ').build(template_definition)
+    print '<?xml version="1.0" encoding="UTF-8"?>\n%s' % xml
+
+
 # Generate output
 if output == 'xml':
     # Add extra items required by triggers
@@ -449,9 +456,7 @@ if output == 'xml':
                 z_trigger['dependencies']['dependency'].append(z_trigger_dep)
         tmpl['triggers']['trigger'].append(z_trigger)
 
-    # Convert and write XML
-    xml = dict2xml.Converter(wrap='zabbix_export', indent='  ').build(tmpl)
-    print '<?xml version="1.0" encoding="UTF-8"?>\n%s' % xml
+    print_xml(tmpl)
 
 elif output == 'xml-lld':
     items = tmpl['templates']['template']['items']['item']
@@ -483,10 +488,7 @@ elif output == 'xml-lld':
     tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': [instances_rule,
                                                                            slaves_rule,
                                                                            query_counters_rule]}
-
-    # Convert and write XML
-    xml = dict2xml.Converter(wrap='zabbix_export', indent='  ').build(tmpl)
-    print '<?xml version="1.0" encoding="UTF-8"?>\n%s' % xml
+    print_xml(tmpl)
 
 elif output == 'config':
     # Read Perl hash aka MAGIC_VARS_DEFINITIONS from Cacti PHP script
