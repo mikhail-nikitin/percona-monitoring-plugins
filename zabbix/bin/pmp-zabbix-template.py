@@ -14,6 +14,7 @@ import sys
 import time
 import yaml
 
+
 VERSION = float("%d.%d" % (sys.version_info[0], sys.version_info[1]))
 if VERSION < 2.6:
     sys.stderr.write("ERROR: python 2.6+ required. Your version %s is too ancient.\n" % VERSION)
@@ -25,6 +26,11 @@ ZABBIX_SCRIPT_PATH = '/var/lib/zabbix/percona/scripts'
 DEFINITION = 'cacti/definitions/mysql.def'
 PHP_SCRIPT = 'cacti/scripts/ss_get_mysql_stats.php'
 TRIGGERS = 'zabbix/triggers/mysql.yml'
+EXTRA_ITEM_UPDATE_INTERVAL = 60
+ITEM_UPDATE_INTERVAL = 60
+ITEM_KEEP_HISTORY_DAYS = 90
+ITEM_KEEP_TRENDS_DAYS = 365
+DISCOVERY_RULE_DELAY = 10
 
 item_types = {'Zabbix agent': 0,
               'Zabbix agent (active)': 7,
@@ -50,6 +56,11 @@ item_value_types = {'Numeric (unsigned)': 3,
                     'Character': 1,
                     'Log': 2,
                     'Text': 4}
+
+item_data_type = {'decimal': 0,
+                  'octal': 1,
+                  'hexadecimal': 2,
+                  'boolean': 3}
 
 # Cacti to Zabbix relation
 item_store_values = {1: 0,  # GAUGE == As is
@@ -178,7 +189,6 @@ def convert_single_item_to_trapper_prototype(item):
     item['name'] += ' {#MYSQL_INSTANCE_NAME}'
     item['key'] += '[{#MYSQL_INSTANCE}]'
     item['delay'] = 0
-    item['data_type'] = item['value_type']
     item['application_prototypes'] = {}
     return item
 
@@ -189,7 +199,7 @@ def create_discovery_rule(name, key, rule={}):
               'snmp_community': '',
               'snmp_oid': '',
               'key': format_item(key),
-              'delay': '10',
+              'delay': DISCOVERY_RULE_DELAY,
               'status': '0',
               'allowed_hosts': '',
               'snmpv3_contextname': '',
@@ -220,6 +230,89 @@ def create_discovery_rule(name, key, rule={}):
     result.update(rule)
     return result
 
+
+def create_extra_item(key, name):
+    result = {'name': name,
+              'key': key,
+              'type': type,
+              'value_type': item_value_types['Numeric (unsigned)'],
+              'data_type': item_data_type['decimal'],
+              'delay': EXTRA_ITEM_UPDATE_INTERVAL,  # Update interval (in sec)
+              'history': ITEM_KEEP_HISTORY_DAYS,
+              'trends': ITEM_KEEP_TRENDS_DAYS,
+              'delta': 0,  # As is
+              'applications': {'application': {'name': app_name}},
+              'description': name,
+              'status': 0,
+              'snmp_community': '',
+              'multiplier': 0,
+              'snmp_oid': '',
+              'snmpv3_contextname': '',
+              'snmpv3_securityname': '',
+              'snmpv3_securitylevel': 0,
+              'snmpv3_authprotocol': 0,
+              'snmpv3_authpassphrase': '',
+              'snmpv3_privpassphrase': '',
+              'snmpv3_privprotocol': 0,
+              'delay_flex': '',
+              'params': '',
+              'ipmi_sensor': '',
+              'authtype': 0,
+              'username': '',
+              'password': '',
+              'publickey': '',
+              'privatekey': '',
+              'port': '',
+              'inventory_link': 0,
+              'valuemap': '',
+              'logtimefmt': '',
+              'allowed_hosts': '',
+              'units': '',
+              'formula': ''}
+    return result
+
+
+def create_item(key, name, value_type, data_type=0, options={}):
+    result = {'name': name,
+              'type': value_type,
+              'key': key,
+              'value_type': value_type,
+              'data_type': data_type,  # Decimal the above is Numeric (unsigned)
+              'units': unit,
+              'delay': ITEM_UPDATE_INTERVAL,  # Update interval (in sec)
+              'history': ITEM_KEEP_HISTORY_DAYS,
+              'trends': ITEM_KEEP_TRENDS_DAYS,
+              'delta': item_store_values[ds_type],
+              'applications': {'application': {'name': app_name}},
+              'description': '%s %s' % (app_name, name),
+              'multiplier': multipliers[item][0],
+              'formula': multipliers[item][1],
+              'status': 0,
+              'snmp_community': '',
+              'snmpv3_contextname': '',
+              'snmpv3_securityname': '',
+              'snmpv3_securitylevel': 0,
+              'snmpv3_authprotocol': 0,
+              'snmpv3_authpassphrase': '',
+              'snmpv3_privpassphrase': '',
+              'snmpv3_privprotocol': 0,
+              'snmp_oid': '',
+              'delay_flex': '',
+              'params': '',
+              'ipmi_sensor': '',
+              'authtype': 0,
+              'username': '',
+              'password': '',
+              'publickey': '',
+              'privatekey': '',
+              'port': '',
+              'inventory_link': 0,
+              'valuemap': '',
+              'logtimefmt': '',
+              'allowed_hosts': '',
+              }
+    result.update(options)
+    return result
 
 def format_item(f_item):
     """Underscore makes an agent to throw away the support for item
@@ -325,44 +418,8 @@ for graph in data['graphs']:
             else:
                 sys.stderr.write("ERROR: base_value %s is not supported for item %s.\n" % (base_value, item))
                 sys.exit(1)
-            z_item = {'name': name,
-                      'type': item_types['Zabbix agent'],
-                      'key': format_item(item),
-                      'value_type': item_value_types['Numeric (float)'],
-                      'data_type': 0,  # Decimal the above is Numeric (unsigned)
-                      'units': unit,
-                      'delay': 300,  # Update interval (in sec)
-                      'history': 90,
-                      'trends': 365,
-                      'delta': item_store_values[ds_type],
-                      'applications': {'application': {'name': app_name }},
-                      'description': '%s %s' % (app_name, name),
-                      'multiplier': multipliers[item][0],
-                      'formula': multipliers[item][1],
-                      'status': 0,
-                      'snmp_community': '',
-                      'snmpv3_contextname': '',
-                      'snmpv3_securityname': '',
-                      'snmpv3_securitylevel': 0,
-                      'snmpv3_authprotocol': 0,
-                      'snmpv3_authpassphrase': '',
-                      'snmpv3_privpassphrase': '',
-                      'snmpv3_privprotocol': 0,
-                      'snmp_oid': '',
-                      'delay_flex': '',
-                      'params': '',
-                      'ipmi_sensor': '',
-                      'authtype': 0,
-                      'username': '',
-                      'password': '',
-                      'publickey': '',
-                      'privatekey': '',
-                      'port': '',
-                      'inventory_link': 0,
-                      'valuemap': '',
-                      'logtimefmt': '',
-                      'allowed_hosts': '',
-                      }
+            key = format_item(item)
+            z_item = create_item(key=key, name=name, value_type=item_value_types['Numeric (float)'], data_type=item_data_type['decimal'])
             tmpl['templates']['template']['items']['item'].append(z_item)
             all_item_keys.add(item)
 
@@ -381,44 +438,7 @@ if output == 'xml':
                    {'name': 'MySQL running slave',
                     'key': format_item('running-slave')}]
     for item in extra_items:
-        z_item = {'name': item['name'],
-                  'key': item['key'],
-                  'type': item_types['Zabbix agent'],
-                  'value_type': item_value_types['Numeric (unsigned)'],
-                  'data_type': 0,
-                  'delay': 60,  # Update interval (in sec)
-                  'history': 90,
-                  'trends': 365,
-                  'delta': 0,  # As is
-                  'applications': {'application': {'name': app_name }},
-                  'description': item['name'],
-                  'status': 0,
-                  'snmp_community': '',
-                  'multiplier': 0,
-                  'snmp_oid': '',
-                  'snmpv3_contextname': '',
-                  'snmpv3_securityname': '',
-                  'snmpv3_securitylevel': 0,
-                  'snmpv3_authprotocol': 0,
-                  'snmpv3_authpassphrase': '',
-                  'snmpv3_privpassphrase': '',
-                  'snmpv3_privprotocol': 0,
-                  'delay_flex': '',
-                  'params': '',
-                  'ipmi_sensor': '',
-                  'authtype': 0,
-                  'username': '',
-                  'password': '',
-                  'publickey': '',
-                  'privatekey': '',
-                  'port': '',
-                  'inventory_link': 0,
-                  'valuemap': '',
-                  'logtimefmt': '',
-                  'allowed_hosts': '',
-                  'units': '',
-                  'formula': '',
-                  }
+        z_item = create_extra_item(key=item['key'], name=item['name'], )
         tmpl['templates']['template']['items']['item'].append(z_item)
 
     # Read triggers from YAML file
