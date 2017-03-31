@@ -25,8 +25,9 @@ ZABBIX_SCRIPT_PATH = '/var/lib/zabbix/percona/scripts'
 DEFINITION = 'cacti/definitions/mysql.def'
 PHP_SCRIPT = 'cacti/scripts/ss_get_mysql_stats.php'
 TRIGGERS = 'zabbix/triggers/mysql.yml'
-EXTRA_ITEM_UPDATE_INTERVAL = 60
-ITEM_UPDATE_INTERVAL = 60
+EXTRA_ITEMS = 'zabbix/items/mysql.yml'
+EXTRA_ITEM_UPDATE_INTERVAL = 10
+ITEM_UPDATE_INTERVAL = 10
 PING_INTERVAL = 5
 ITEM_KEEP_HISTORY_DAYS = 90
 ITEM_KEEP_TRENDS_DAYS = 365
@@ -331,6 +332,37 @@ def format_item(f_item):
     return '%s.%s' % (app_name, f_item.replace('_', '-'))
 
 
+def load_extra_items():
+    result = []
+    try:
+        f = open(EXTRA_ITEMS, 'r')
+        items = yaml.safe_load(f)
+        for item in items:
+            result.append(create_item(name=item['name'],
+                                      key=format_item(item['key']),
+                                      value_type=get_value_type_for_extra_item(item),
+                                      data_type=get_data_type_for_extra_item(item)))
+        f.close()
+    except IOError:
+        result = []
+    return result
+
+
+def get_value_type_for_extra_item(item):
+    if 'is_text' in item and item['is_text']:
+        return item_value_types['Text']
+    if ('is_unsigned' in item and item['is_unsigned']) or \
+       ('is_bool' in item and item['is_bool']):
+        return item_value_types['Numeric (unsigned)']
+    return item_value_types['Numeric (float)']
+
+
+def get_data_type_for_extra_item(item):
+    if 'is_bool' in item and item['is_bool']:
+        return item_data_type['boolean']
+    return item_data_type['decimal']
+
+
 # Parse definition
 all_item_keys = set()
 x = y = 0
@@ -491,6 +523,7 @@ if output == 'xml':
 
 elif output == 'xml-lld':
     items = tmpl['templates']['template']['items']['item']
+    items.extend(load_extra_items())
     items = remove_duplicate_keys(items)
     items_by_category = index_items_by_category(items)
 

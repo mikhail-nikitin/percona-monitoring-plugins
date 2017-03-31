@@ -1,0 +1,39 @@
+- name: Slave IO Thread Running
+  key: slave-io-running
+  is_bool: yes
+
+- name: Slave SQL Thread Running
+  key: slave-sql-running
+  is_bool: yes
+
+- name: Slave Last IO Error
+  key: slave-last-io-error
+  is_text: yes
+
+- name: Slave Last SQL Error
+  key: slave-last-sql-error
+  is_text: yes
+
+# extra items, that does not have graphs, but can be useful for triggers
+- name: Innodb Open Files
+  key: innodb-open-files
+  is_unsigned: yes
+
+- name: Open Files Limit
+  key: open-files-limit
+  is_unsigned: yes
+
+- name: Slow Launch Threads
+  key: Slow-launch-threads
+
+- name: Binary Log Cache Size
+  key: binlog-cache-size
+  is_unsigned: yes
+
+- name: Calls To Discover Handler
+  key: Handler-discover
+  is_unsigned: yes
+
+- name: Calls To Prepare Handler
+  key: Handler-prepare
+  is_unsigned: yes
