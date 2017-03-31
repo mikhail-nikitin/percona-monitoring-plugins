@@ -495,6 +495,7 @@ elif output == 'xml-lld':
         name='Update Stats of MySQL Instance',
         key=format_item('send_parameters'),
         update_interval=ITEM_UPDATE_INTERVAL)
+    update_item['name'] = format_item('send_parameters') + '[{#MYSQL_INSTANCE},{#MYSQL_IS_SLAVE},{#MYSQL_DOES_SUPPORT_QUERY_COUNTER},{#MYSQL_WSREP}]'
     ping_item = create_extra_item_prototype(
         name='Ping MySQL Instance',
         key=format_item('heartbeat'),
