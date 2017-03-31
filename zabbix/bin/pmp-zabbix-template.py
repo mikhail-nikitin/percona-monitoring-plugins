@@ -14,7 +14,6 @@ import sys
 import time
 import yaml
 
-
 VERSION = float("%d.%d" % (sys.version_info[0], sys.version_info[1]))
 if VERSION < 2.6:
     sys.stderr.write("ERROR: python 2.6+ required. Your version %s is too ancient.\n" % VERSION)
@@ -82,7 +81,7 @@ graph_item_functions = {'all': 7,
 # Cacti to Zabbix relation
 graph_item_draw_styles = {'LINE1': 0,  # Line
                           'LINE2': 2,  # Bold line
-                          'AREA':  1,  # Filled region
+                          'AREA': 1,  # Filled region
                           'STACK': 0}  # Line
 # Others: Dot 3, Dashed line 4, Gradient line 5
 
@@ -331,6 +330,7 @@ def format_item(f_item):
     """
     return '%s.%s' % (app_name, f_item.replace('_', '-'))
 
+
 # Parse definition
 all_item_keys = set()
 x = y = 0
@@ -339,7 +339,7 @@ for graph in data['graphs']:
     z_graph = {'name': graph['name'],
                'width': 900,
                'height': 200,
-               #'graphtype': graph_types['Normal'], #commented out to work with Zabbix3
+               # 'graphtype': graph_types['Normal'], #commented out to work with Zabbix3
                'type': graph_types['Normal'],
                'show_legend': 1,
                'show_work_period': 1,
@@ -431,7 +431,10 @@ for graph in data['graphs']:
                 sys.stderr.write("ERROR: base_value %s is not supported for item %s.\n" % (base_value, item))
                 sys.exit(1)
             key = format_item(item)
-            z_item = create_item(key=key, name=name, value_type=item_value_types['Numeric (float)'], data_type=item_data_type['decimal'])
+            z_item = create_item(key=key,
+                                 name=name,
+                                 value_type=item_value_types['Numeric (float)'],
+                                 data_type=item_data_type['decimal'])
             tmpl['templates']['template']['items']['item'].append(z_item)
             all_item_keys.add(item)
 
