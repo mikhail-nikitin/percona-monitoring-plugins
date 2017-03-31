@@ -551,16 +551,16 @@ elif output == 'xml-lld':
     tmpl['templates']['template']['screens'] = {}
     tmpl['screens'] = {}
 
-    instances_rule = create_discovery_rule('MySQL Instances', 'instances[]')
+    instances_rule = create_discovery_rule(name='MySQL Instances', key='instances[]')
     instances_rule['item_prototypes'] = {'item_prototype': common_items}
 
-    slaves_rule = create_discovery_rule('MySQL Slave instances', 'instances[slaves]')
+    slaves_rule = create_discovery_rule(name='MySQL Slave instances', key='instances[slaves]')
     slaves_rule['item_prototypes'] = {'item_prototype': slave_items}
 
-    query_counters_rule = create_discovery_rule('MySQL Instances with query counter', 'instances[with_query_counter]')
+    query_counters_rule = create_discovery_rule(name='MySQL Instances with query counter', key='instances[with_query_counter]')
     query_counters_rule['item_prototypes'] = {'item_prototype': query_counter_items}
 
-    wsrep_rule = create_discovery_rule('MySQL Galera instances', 'instances[wsrep]')
+    wsrep_rule = create_discovery_rule(name='MySQL Galera instances', key='instances[wsrep]')
     wsrep_rule['item_prototypes'] = {'item_prototype': wsrep_items}
 
     tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': [instances_rule,
