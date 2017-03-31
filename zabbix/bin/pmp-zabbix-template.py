@@ -28,6 +28,7 @@ PHP_SCRIPT = 'cacti/scripts/ss_get_mysql_stats.php'
 TRIGGERS = 'zabbix/triggers/mysql.yml'
 EXTRA_ITEM_UPDATE_INTERVAL = 60
 ITEM_UPDATE_INTERVAL = 60
+PING_INTERVAL = 5
 ITEM_KEEP_HISTORY_DAYS = 90
 ITEM_KEEP_TRENDS_DAYS = 365
 DISCOVERY_RULE_DELAY = 10
@@ -184,12 +185,17 @@ def convert_items_to_trapper_prototypes(items):
     return [convert_single_item_to_trapper_prototype(item) for item in items]
 
 
-def convert_single_item_to_trapper_prototype(item):
-    item['type'] = item_types['Zabbix Trapper']
+def convert_item_to_prototype(item):
     item['name'] += ' {#MYSQL_INSTANCE_NAME}'
     item['key'] += '[{#MYSQL_INSTANCE}]'
-    item['delay'] = 0
     item['application_prototypes'] = {}
+    return item
+
+
+def convert_single_item_to_trapper_prototype(item):
+    item = convert_item_to_prototype(item)
+    item['type'] = item_types['Zabbix Trapper']
+    item['delay'] = 0
     return item
 
 
@@ -231,13 +237,13 @@ def create_discovery_rule(name, key, rule={}):
     return result
 
 
-def create_extra_item(key, name):
+def create_extra_item(key, name, update_interval=EXTRA_ITEM_UPDATE_INTERVAL):
     result = {'name': name,
               'key': key,
-              'type': type,
+              'type': 0,
               'value_type': item_value_types['Numeric (unsigned)'],
               'data_type': item_data_type['decimal'],
-              'delay': EXTRA_ITEM_UPDATE_INTERVAL,  # Update interval (in sec)
+              'delay': update_interval,
               'history': ITEM_KEEP_HISTORY_DAYS,
               'trends': ITEM_KEEP_TRENDS_DAYS,
               'delta': 0,  # As is
@@ -270,6 +276,11 @@ def create_extra_item(key, name):
               'units': '',
               'formula': ''}
     return result
+
+
+def create_extra_item_prototype(key, name, update_interval=EXTRA_ITEM_UPDATE_INTERVAL):
+    item = create_extra_item(key, name, update_interval)
+    return convert_item_to_prototype(item)
 
 
 def create_item(key, name, value_type, data_type=0, options={}):
@@ -313,6 +324,7 @@ def create_item(key, name, value_type, data_type=0, options={}):
               }
     result.update(options)
     return result
+
 
 def format_item(f_item):
     """Underscore makes an agent to throw away the support for item
@@ -479,7 +491,19 @@ elif output == 'xml-lld':
     items = remove_duplicate_keys(items)
     items_by_category = index_items_by_category(items)
 
+    update_item = create_extra_item_prototype(
+        name='Update Stats of MySQL Instance',
+        key=format_item('send_parameters'),
+        update_interval=ITEM_UPDATE_INTERVAL)
+    ping_item = create_extra_item_prototype(
+        name='Ping MySQL Instance',
+        key=format_item('heartbeat'),
+        update_interval=PING_INTERVAL)
+
     common_items = convert_items_to_trapper_prototypes(items_by_category['common'])
+    common_items.append(update_item)
+    common_items.append(ping_item)
+
     slave_items = convert_items_to_trapper_prototypes(items_by_category['slave'])
     query_counter_items = convert_items_to_trapper_prototypes(items_by_category['query_counter'])
     wsrep_items = convert_items_to_trapper_prototypes(items_by_category['wsrep'])
@@ -488,6 +512,7 @@ elif output == 'xml-lld':
     tmpl['graphs'] = {}
     tmpl['triggers'] = {}
     tmpl['templates']['template']['screens'] = {}
+    tmpl['screens'] = {}
 
     instances_rule = create_discovery_rule('MySQL Instances', 'instances[]')
     instances_rule['item_prototypes'] = {'item_prototype': common_items}
