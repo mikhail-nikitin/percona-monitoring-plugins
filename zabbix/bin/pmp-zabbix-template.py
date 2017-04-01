@@ -182,14 +182,17 @@ def remove_duplicate_keys(items):
 
 
 def index_items_by_category(items):
-    result = dict.fromkeys(ALL_ITEM_CATEGORIES, [])
+    result = {}
+
+    for category in ALL_ITEM_CATEGORIES:
+        result[category] = []
 
     for item in items:
         category = COMMON_CATEGORY
         if CATEGORY_HELPER_FIELD in item:
             category = item[CATEGORY_HELPER_FIELD]
 
-        if category not in item:
+        if category not in result:
             result[category] = []
 
         result[category].append(item)
