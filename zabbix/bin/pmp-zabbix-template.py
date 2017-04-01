@@ -580,9 +580,11 @@ if output == 'xml':
     print_xml(tmpl)
 
 elif output == 'xml-lld':
-    items = categorize_items(tmpl['templates']['template']['items']['item'])
+    items = tmpl['templates']['template']['items']['item']
     items.extend(load_extra_items())
+    items = convert_items_to_trapper_prototypes(items)
     items = remove_duplicate_keys(items)
+    items = categorize_items(items)
     items_by_category = index_items_by_category(items)
 
     update_item = create_extra_item_prototype(
@@ -595,13 +597,7 @@ elif output == 'xml-lld':
         key=format_item('heartbeat'),
         update_interval=PING_INTERVAL)
 
-    common_items = convert_items_to_trapper_prototypes(items_by_category['common'])
-    common_items.append(update_item)
-    common_items.append(ping_item)
-
-    slave_items = convert_items_to_trapper_prototypes(items_by_category['slave'])
-    query_counter_items = convert_items_to_trapper_prototypes(items_by_category['query_counter'])
-    wsrep_items = convert_items_to_trapper_prototypes(items_by_category['wsrep'])
+    items_by_category['common'].extend([update_item, ping_item])
 
     tmpl['templates']['template']['items'] = {}
     tmpl['graphs'] = {}
@@ -609,21 +605,16 @@ elif output == 'xml-lld':
     tmpl['templates']['template']['screens'] = {}
     tmpl['screens'] = {}
 
-    instances_rule = create_discovery_rule(name='MySQL Instances', key='instances[]')
-    instances_rule['item_prototypes'] = {'item_prototype': remove_helper_fields_from_items(common_items)}
+    rules = []
+    for rule_definition in DISCOVERY_RULES:
+        item_prototypes = items_by_category[rule_definition['category']]
+        item_prototypes = remove_helper_fields_from_items(item_prototypes)
+        if len(item_prototypes) > 0:
+            rule = create_discovery_rule(name=rule_definition['name'], key=rule_definition['key'])
+            rule['item_prototypes'] = {'item_prototype': item_prototypes}
+            rules.append(rule)
+    tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': rules}
 
-    slaves_rule = create_discovery_rule(name='MySQL Slave instances', key='instances[slaves]')
-    slaves_rule['item_prototypes'] = {'item_prototype': remove_helper_fields_from_items(slave_items)}
-
-    query_counters_rule = create_discovery_rule(name='MySQL Instances with query counter', key='instances[with_query_counter]')
-    query_counters_rule['item_prototypes'] = {'item_prototype': remove_helper_fields_from_items(query_counter_items)}
-
-    wsrep_rule = create_discovery_rule(name='MySQL Galera instances', key='instances[wsrep]')
-    wsrep_rule['item_prototypes'] = {'item_prototype': remove_helper_fields_from_items(wsrep_items)}
-
-    tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': [instances_rule,
-                                                                           slaves_rule,
-                                                                           query_counters_rule]}
     print_xml(tmpl)
 
 elif output == 'config':
