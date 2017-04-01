@@ -175,13 +175,8 @@ tmpl['triggers'] = ''
 
 
 def remove_duplicate_keys(items):
-    already_found_keys = set()
-    result = []
-    for item in items:
-        if not item['key'] in already_found_keys:
-            already_found_keys.add(item['key'])
-            result.append(item)
-    return result
+    dictionary = dict([(item['key'], item) for item in items])
+    return dictionary.values()
 
 
 def index_items_by_category(items):
