@@ -13,6 +13,7 @@ import re
 import sys
 import time
 import yaml
+from functools import wraps
 
 VERSION = float("%d.%d" % (sys.version_info[0], sys.version_info[1]))
 if VERSION < 2.6:
@@ -32,6 +33,17 @@ PING_INTERVAL = 5
 ITEM_KEEP_HISTORY_DAYS = 90
 ITEM_KEEP_TRENDS_DAYS = 365
 DISCOVERY_RULE_DELAY = 10
+
+CATEGORY_HELPER_FIELD = 'category'
+
+COMMON_CATEGORY = 'common'
+SLAVE_CATEGORY = 'slave'
+QUERY_COUNTER_CATEGORY = 'query_counter'
+WSREP_CATEGORY = 'wsrep'
+
+item_category_keywords = {SLAVE_CATEGORY: 'slave',
+                          QUERY_COUNTER_CATEGORY: 'query-time',
+                          WSREP_CATEGORY: 'wsrep'}
 
 item_types = {'Zabbix agent': 0,
               'Zabbix agent (active)': 7,
@@ -163,22 +175,63 @@ def remove_duplicate_keys(items):
     return result
 
 
-def filter_items_by_key_prefix(items, prefix_word):
-    prefix_re = re.compile(re.escape(format_item(prefix_word) + '-'), re.IGNORECASE)
-    return [item for item in items if prefix_re.match(item['key'])]
-
-
-def reject_items_by_key_prefixes(items, prefix_words):
-    alternatives = [re.escape(format_item(word) + '-') for word in prefix_words]
-    prefix_re = re.compile('|'.join(alternatives), re.IGNORECASE)
-    return [item for item in items if not prefix_re.match(item['key'])]
-
-
 def index_items_by_category(items):
-    return {'common': reject_items_by_key_prefixes(items, ['slave', 'query-time', 'wsrep']),
-            'slave': filter_items_by_key_prefix(items, 'slave'),
-            'query_counter': filter_items_by_key_prefix(items, 'query-time'),
-            'wsrep': filter_items_by_key_prefix(items, 'wsrep')}
+    result = dict.fromkeys(item_category_keywords.keys(), [])
+    result[COMMON_CATEGORY] = []
+
+    for item in items:
+        category = COMMON_CATEGORY
+        if CATEGORY_HELPER_FIELD in item:
+            category = item[CATEGORY_HELPER_FIELD]
+
+        if category not in item:
+            result[category] = []
+
+        result[category].append(item)
+    return result
+
+
+def categorize_items(items):
+    return [categorize_single_item(item) for item in items]
+
+
+def categorize_single_item(item):
+    if CATEGORY_HELPER_FIELD in item:
+        return item
+    for category, keyword in item_category_keywords.items():
+        if get_keyword_matching_regex(keyword).match(item['key']):
+            item[CATEGORY_HELPER_FIELD] = category
+            break
+    return item
+
+
+def single_argument_memoize(f):
+    cache = {}
+
+    @wraps(f)
+    def wrapper(arg):
+        if arg in cache:
+            result = cache[arg]
+        else:
+            result = f(arg)
+            cache[arg] = result
+        return result
+    return wrapper
+
+
+@single_argument_memoize
+def get_keyword_matching_regex(keyword):
+    return re.compile(re.escape(format_item(keyword) + '-'), re.IGNORECASE)
+
+
+def remove_helper_fields_from_items(items):
+    return [remove_helper_fields_from_single_item(item) for item in items]
+
+
+def remove_helper_fields_from_single_item(item):
+    if CATEGORY_HELPER_FIELD in item:
+        item.pop(CATEGORY_HELPER_FIELD)
+    return item
 
 
 def convert_items_to_trapper_prototypes(items):
@@ -522,7 +575,7 @@ if output == 'xml':
     print_xml(tmpl)
 
 elif output == 'xml-lld':
-    items = tmpl['templates']['template']['items']['item']
+    items = categorize_items(tmpl['templates']['template']['items']['item'])
     items.extend(load_extra_items())
     items = remove_duplicate_keys(items)
     items_by_category = index_items_by_category(items)
@@ -552,16 +605,16 @@ elif output == 'xml-lld':
     tmpl['screens'] = {}
 
     instances_rule = create_discovery_rule(name='MySQL Instances', key='instances[]')
-    instances_rule['item_prototypes'] = {'item_prototype': common_items}
+    instances_rule['item_prototypes'] = {'item_prototype': remove_helper_fields_from_items(common_items)}
 
     slaves_rule = create_discovery_rule(name='MySQL Slave instances', key='instances[slaves]')
-    slaves_rule['item_prototypes'] = {'item_prototype': slave_items}
+    slaves_rule['item_prototypes'] = {'item_prototype': remove_helper_fields_from_items(slave_items)}
 
     query_counters_rule = create_discovery_rule(name='MySQL Instances with query counter', key='instances[with_query_counter]')
-    query_counters_rule['item_prototypes'] = {'item_prototype': query_counter_items}
+    query_counters_rule['item_prototypes'] = {'item_prototype': remove_helper_fields_from_items(query_counter_items)}
 
     wsrep_rule = create_discovery_rule(name='MySQL Galera instances', key='instances[wsrep]')
-    wsrep_rule['item_prototypes'] = {'item_prototype': wsrep_items}
+    wsrep_rule['item_prototypes'] = {'item_prototype': remove_helper_fields_from_items(wsrep_items)}
 
     tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': [instances_rule,
                                                                            slaves_rule,
