@@ -35,6 +35,7 @@ ITEM_KEEP_TRENDS_DAYS = 365
 DISCOVERY_RULE_DELAY = 10
 
 CATEGORY_HELPER_FIELD = 'category'
+DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD = 'do_not_convert_to_trapper'
 
 COMMON_CATEGORY = 'common'
 SLAVE_CATEGORY = 'slave'
@@ -237,6 +238,8 @@ def remove_helper_fields_from_items(items):
 def remove_helper_fields_from_single_item(item):
     if CATEGORY_HELPER_FIELD in item:
         item.pop(CATEGORY_HELPER_FIELD)
+    if DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD in item:
+        item.pop(DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD)
     return item
 
 
@@ -246,15 +249,17 @@ def convert_items_to_trapper_prototypes(items):
 
 def convert_item_to_prototype(item):
     item['name'] += ' {#MYSQL_INSTANCE_NAME}'
-    item['key'] += '[{#MYSQL_INSTANCE}]'
+    if item['key'].find('{#MYSQL_INSTANCE}') == -1:
+        item['key'] += '[{#MYSQL_INSTANCE}]'
     item['application_prototypes'] = {}
     return item
 
 
 def convert_single_item_to_trapper_prototype(item):
     item = convert_item_to_prototype(item)
-    item['type'] = item_types['Zabbix Trapper']
-    item['delay'] = 0
+    if DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD not in item or not item[DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD]:
+        item['type'] = item_types['Zabbix Trapper']
+        item['delay'] = 0
     return item
 
 
@@ -367,14 +372,27 @@ def load_extra_items():
         f = open(EXTRA_ITEMS, 'r')
         items = yaml.safe_load(f)
         for item in items:
-            result.append(create_item(name=item['name'],
-                                      key=format_item(item['key']),
+            result_item = create_item(name=item['name'],
+                                      key=get_key_for_extra_item(item),
                                       value_type=get_value_type_for_extra_item(item),
-                                      data_type=get_data_type_for_extra_item(item)))
+                                      value_storage_type=item_value_storage_type[item['value_storage_type']] if 'value_storage_type' in item else item_value_storage_type['As is'],
+                                      data_type=get_data_type_for_extra_item(item),
+                                      update_interval=item['update_interval'] if 'update_interval' in item else EXTRA_ITEM_UPDATE_INTERVAL,
+                                      unit=item['unit'] if 'unit' in item else '')
+            if DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD in item:
+                result_item[DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD] = item[DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD]
+            result.append(result_item)
         f.close()
     except IOError:
         result = []
     return result
+
+
+def get_key_for_extra_item(item):
+    key = format_item(item['key']) if item['key'].find('.') == -1 else item['key']
+    if 'prototype_suffix' in item:
+        key += item['prototype_suffix']
+    return key
 
 
 def get_value_type_for_extra_item(item):
