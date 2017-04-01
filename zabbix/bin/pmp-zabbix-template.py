@@ -86,6 +86,9 @@ item_store_values = {1: 0,  # GAUGE == As is
                      2: 1,  # COUNTER == Delta (speed per second)
                      3: 1}  # DERIVE == Delta (speed per second)
 # Others: Delta (simple change) 2
+item_value_storage_type = {'As is': 0,
+                           'Delta (speed per second)': 1,
+                           'Delta (simple change)': 2}
 
 graph_types = {'Normal': 0,
                'Stacked': 1,
@@ -310,7 +313,7 @@ def create_extra_item_prototype(key, name, update_interval=EXTRA_ITEM_UPDATE_INT
 def create_item(key, name, value_type,
                 type=item_types['Zabbix agent'],
                 data_type=item_data_type['decimal'],
-                value_storage_type=0,
+                value_storage_type=item_value_storage_type['As is'],
                 unit='',
                 multiplication_factor=None,
                 update_interval=ITEM_UPDATE_INTERVAL,
