@@ -41,9 +41,15 @@ SLAVE_CATEGORY = 'slave'
 QUERY_COUNTER_CATEGORY = 'query_counter'
 WSREP_CATEGORY = 'wsrep'
 
-item_category_keywords = {SLAVE_CATEGORY: 'slave',
-                          QUERY_COUNTER_CATEGORY: 'query-time',
-                          WSREP_CATEGORY: 'wsrep'}
+CATEGORY_KEYWORDS = {SLAVE_CATEGORY: 'slave',
+                     QUERY_COUNTER_CATEGORY: 'query-time',
+                     WSREP_CATEGORY: 'wsrep'}
+
+DISCOVERY_RULES = [{'key': 'instances[]', 'name': 'MySQL Instances', 'category': COMMON_CATEGORY},
+                   {'key': 'instances[slaves]', 'name': 'MySQL Slave instances', 'category': SLAVE_CATEGORY},
+                   {'key': 'instances[with_query_counter]', 'name': 'MySQL Instances with query counter', 'category': QUERY_COUNTER_CATEGORY},
+                   {'key': 'instances[wsrep]', 'name': 'MySQL Galera instances', 'category': WSREP_CATEGORY}]
+ALL_ITEM_CATEGORIES = [rule['category'] for rule in DISCOVERY_RULES]
 
 item_types = {'Zabbix agent': 0,
               'Zabbix agent (active)': 7,
@@ -176,8 +182,7 @@ def remove_duplicate_keys(items):
 
 
 def index_items_by_category(items):
-    result = dict.fromkeys(item_category_keywords.keys(), [])
-    result[COMMON_CATEGORY] = []
+    result = dict.fromkeys(ALL_ITEM_CATEGORIES, [])
 
     for item in items:
         category = COMMON_CATEGORY
@@ -198,7 +203,7 @@ def categorize_items(items):
 def categorize_single_item(item):
     if CATEGORY_HELPER_FIELD in item:
         return item
-    for category, keyword in item_category_keywords.items():
+    for category, keyword in CATEGORY_KEYWORDS.items():
         if get_keyword_matching_regex(keyword).match(item['key']):
             item[CATEGORY_HELPER_FIELD] = category
             break
