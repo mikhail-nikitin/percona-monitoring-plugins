@@ -301,15 +301,6 @@ def create_discovery_rule(name, key, rule={}):
     return result
 
 
-def create_extra_item_prototype(key, name, update_interval=EXTRA_ITEM_UPDATE_INTERVAL):
-    item = create_item(key=key,
-                       name=name,
-                       type=item_types['Zabbix agent'],
-                       value_type=item_value_types['Numeric (unsigned)'],
-                       update_interval=update_interval)
-    return convert_item_to_prototype(item)
-
-
 def create_item(key, name, value_type,
                 type=item_types['Zabbix agent'],
                 data_type=item_data_type['decimal'],
@@ -579,18 +570,6 @@ elif output == 'xml-lld':
     items = remove_duplicate_keys(items)
     items = categorize_items(items)
     items_by_category = index_items_by_category(items)
-
-    update_item = create_extra_item_prototype(
-        name='Update Stats of MySQL Instance',
-        key=format_item('send_parameters'),
-        update_interval=ITEM_UPDATE_INTERVAL)
-    update_item['name'] = format_item('send_parameters') + '[{#MYSQL_INSTANCE},{#MYSQL_IS_SLAVE},{#MYSQL_DOES_SUPPORT_QUERY_COUNTER},{#MYSQL_WSREP}]'
-    ping_item = create_extra_item_prototype(
-        name='Ping MySQL Instance',
-        key=format_item('heartbeat'),
-        update_interval=PING_INTERVAL)
-
-    items_by_category['common'].extend([update_item, ping_item])
 
     tmpl['templates']['template']['items'] = {}
     tmpl['graphs'] = {}

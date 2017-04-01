@@ -1,3 +1,19 @@
+#
+- name: Update Stats of MySQL Instance
+  key: send-parameters
+  prototype_suffix: '[{#MYSQL_INSTANCE},{#MYSQL_IS_SLAVE},{#MYSQL_DOES_SUPPORT_QUERY_COUNTER},{#MYSQL_WSREP}]'
+  category: common
+  is_unsigned: yes
+  do_not_convert_to_trapper: yes
+
+- name: Ping MySQL Instance
+  key: 'heartbeat'
+  category: common
+  is_bool: yes
+  update_interval: 5
+  do_not_convert_to_trapper: yes
+
+# Additional replication items
 - name: Slave IO Thread Running
   key: slave-io-running
   is_bool: yes
