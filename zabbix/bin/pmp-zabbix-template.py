@@ -295,67 +295,38 @@ def create_discovery_rule(name, key, rule={}):
     return result
 
 
-def create_extra_item(key, name, update_interval=EXTRA_ITEM_UPDATE_INTERVAL):
-    result = {'name': name,
-              'key': key,
-              'type': 0,
-              'value_type': item_value_types['Numeric (unsigned)'],
-              'data_type': item_data_type['decimal'],
-              'delay': update_interval,
-              'history': ITEM_KEEP_HISTORY_DAYS,
-              'trends': ITEM_KEEP_TRENDS_DAYS,
-              'delta': 0,  # As is
-              'applications': {'application': {'name': app_name}},
-              'description': name,
-              'status': 0,
-              'snmp_community': '',
-              'multiplier': 0,
-              'snmp_oid': '',
-              'snmpv3_contextname': '',
-              'snmpv3_securityname': '',
-              'snmpv3_securitylevel': 0,
-              'snmpv3_authprotocol': 0,
-              'snmpv3_authpassphrase': '',
-              'snmpv3_privpassphrase': '',
-              'snmpv3_privprotocol': 0,
-              'delay_flex': '',
-              'params': '',
-              'ipmi_sensor': '',
-              'authtype': 0,
-              'username': '',
-              'password': '',
-              'publickey': '',
-              'privatekey': '',
-              'port': '',
-              'inventory_link': 0,
-              'valuemap': '',
-              'logtimefmt': '',
-              'allowed_hosts': '',
-              'units': '',
-              'formula': ''}
-    return result
-
-
 def create_extra_item_prototype(key, name, update_interval=EXTRA_ITEM_UPDATE_INTERVAL):
-    item = create_extra_item(key, name, update_interval)
+    item = create_item(key=key,
+                       name=name,
+                       type=item_types['Zabbix agent'],
+                       value_type=item_value_types['Numeric (unsigned)'],
+                       update_interval=update_interval)
     return convert_item_to_prototype(item)
 
 
-def create_item(key, name, value_type, data_type=0, options={}):
+def create_item(key, name, value_type,
+                type=item_types['Zabbix agent'],
+                data_type=item_data_type['decimal'],
+                value_storage_type=0,
+                unit='',
+                multiplication_factor=None,
+                update_interval=ITEM_UPDATE_INTERVAL,
+                history=ITEM_KEEP_HISTORY_DAYS,
+                trends=ITEM_KEEP_TRENDS_DAYS):
     result = {'name': name,
-              'type': value_type,
+              'type': type,
               'key': key,
               'value_type': value_type,
               'data_type': data_type,  # Decimal the above is Numeric (unsigned)
               'units': unit,
-              'delay': ITEM_UPDATE_INTERVAL,  # Update interval (in sec)
-              'history': ITEM_KEEP_HISTORY_DAYS,
-              'trends': ITEM_KEEP_TRENDS_DAYS,
-              'delta': item_store_values[ds_type],
+              'delay': update_interval,  # Update interval (in sec)
+              'history': history,
+              'trends': trends,
+              'delta': value_storage_type,
               'applications': {'application': {'name': app_name}},
               'description': '%s %s' % (app_name, name),
-              'multiplier': multipliers[item][0],
-              'formula': multipliers[item][1],
+              'multiplier': 1 if multiplication_factor is not None else 0,
+              'formula': multiplication_factor if multiplication_factor is not None else 1,
               'status': 0,
               'snmp_community': '',
               'snmpv3_contextname': '',
@@ -380,7 +351,6 @@ def create_item(key, name, value_type, data_type=0, options={}):
               'logtimefmt': '',
               'allowed_hosts': '',
               }
-    result.update(options)
     return result
 
 
@@ -522,9 +492,13 @@ for graph in data['graphs']:
                 sys.exit(1)
             key = format_item(item)
             z_item = create_item(key=key,
+                                 type=item_types['Zabbix agent'],
                                  name=name,
                                  value_type=item_value_types['Numeric (float)'],
-                                 data_type=item_data_type['decimal'])
+                                 data_type=item_data_type['decimal'],
+                                 value_storage_type=item_store_values[ds_type],
+                                 multiplication_factor=multipliers[item][1] if item in multipliers and multipliers[item][0] > 0 else None,
+                                 unit=unit)
             tmpl['templates']['template']['items']['item'].append(z_item)
             all_item_keys.add(item)
 
@@ -543,7 +517,7 @@ if output == 'xml':
                    {'name': 'MySQL running slave',
                     'key': format_item('running-slave')}]
     for item in extra_items:
-        z_item = create_extra_item(key=item['key'], name=item['name'], )
+        z_item = create_item(key=item['key'], name=item['name'], update_interval=EXTRA_ITEM_UPDATE_INTERVAL)
         tmpl['templates']['template']['items']['item'].append(z_item)
 
     # Read triggers from YAML file
