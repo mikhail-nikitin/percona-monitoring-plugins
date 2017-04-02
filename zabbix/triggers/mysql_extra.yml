@@ -1,0 +1,15 @@
+# Zabbix triggers for MySQL
+#
+# License: GPL License (see COPYING)
+# Copyright: 2013 Percona
+# Authors: Roman Vynar, Mikhail Nikitin
+
+trigger_prototypes:
+  # MySQL process
+  - name: MySQL {#MYSQL_INSTANCE} is down on {HOST.NAME}
+    category: common
+    expression: '{TEMPLATE:MySQL.heartbeat[{#MYSQL_INSTANCE}].last(0)}<>1'
+    severity: Disaster
+macros:
+  - '{$SLAVE_LAG_AVERAGE}': 300
+  - '{$SLAVE_LAG_HIGH}': 600

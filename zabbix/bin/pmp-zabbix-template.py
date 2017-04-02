@@ -26,6 +26,7 @@ ZABBIX_SCRIPT_PATH = '/var/lib/zabbix/percona/scripts'
 DEFINITION = 'cacti/definitions/mysql.def'
 PHP_SCRIPT = 'cacti/scripts/ss_get_mysql_stats.php'
 TRIGGERS = 'zabbix/triggers/mysql.yml'
+TRIGGER_PROTOTYPES = 'zabbix/triggers/mysql_extra.yml'
 EXTRA_ITEMS = 'zabbix/items/mysql.yml'
 EXTRA_ITEM_UPDATE_INTERVAL = 10
 ITEM_UPDATE_INTERVAL = 10
@@ -262,6 +263,20 @@ def convert_single_item_to_trapper_prototype(item):
         item['delay'] = 0
     return item
 
+
+def load_trigger_prototypes_and_macros(template_name):
+    data = {'trigger_prototypes': [], 'macros': []}
+    try:
+        with open(TRIGGER_PROTOTYPES) as f:
+            data.update(yaml.safe_load(f))
+    except IOError as err:
+        sys.stderr.write(err)
+
+    result = {'trigger_prototypes': [], 'macros': []}
+    trigger_refs = get_trigger_expressions_by_names(data['trigger_prototypes'], template_name)
+    for trigger in data['trigger_prototypes']:
+        result['trigger_prototypes'].append(create_trigger_from_definition(trigger, template_name, trigger_refs))
+    return result
 
 def create_discovery_rule(name, key, rule={}):
     result = {'name': name,
@@ -519,6 +534,42 @@ def print_xml(template_definition):
     print '<?xml version="1.0" encoding="UTF-8"?>\n%s' % xml
 
 
+def get_trigger_expressions_by_names(trigger_definitions, template_name):
+    return dict((t['name'], t['expression'].replace('TEMPLATE', template_name)) for t in trigger_definitions)
+
+
+def create_trigger_from_definition(trigger_definition, template_name, expressions_by_names={}):
+    result = {'name': trigger_definition['name'],
+              'expression': trigger_definition['expression'].replace('TEMPLATE', template_name),
+              'priority': trigger_severities[trigger_definition.get('severity', 'Not_classified')],
+              'status': 0,  # Enabled
+              'dependencies': '',
+              'url': '',
+              'description': '',
+              'type': item_types['Zabbix agent']}
+    if 'category' in trigger_definition:
+        result['category'] = trigger_definition['category']
+
+    if trigger_definition.get('dependencies', []):
+        add_dependencies_to_trigger(trigger=result,
+                                    name_dependencies=trigger_definition['dependencies'],
+                                    expressions_by_names=expressions_by_names)
+    return result
+
+
+def add_dependencies_to_trigger(trigger, name_dependencies, expressions_by_names={}):
+    trigger['dependencies'] = {'dependency': []}
+    for dep in name_dependencies:
+        exp = expressions_by_names.get(dep)
+        if not exp:
+            sys.stderr.write(
+                "ERROR: Dependency trigger '%s' is not defined for trigger '%s'.\n" % (dep, trigger['name']))
+            sys.exit(1)
+        dependency = {'name': dep, 'expression': exp}
+        trigger['dependencies']['dependency'].append(dependency)
+    return trigger
+
+
 # Generate output
 if output == 'xml':
     # Add extra items required by triggers
@@ -535,30 +586,11 @@ if output == 'xml':
     data = yaml.safe_load(dfile)
 
     # Populate triggers
-    trigger_refs = dict((t['name'], t['expression'].replace('TEMPLATE', tmpl_name)) for t in data)
+    trigger_refs = get_trigger_expressions_by_names(data, tmpl_name)
     if trigger_refs:
         tmpl['triggers'] = {'trigger': []}
     for trigger in data:
-        z_trigger = {'name': trigger['name'],
-                     'expression': trigger['expression'].replace('TEMPLATE', tmpl_name),
-                     'priority': trigger_severities[trigger.get('severity', 'Not_classified')],
-                     'status': 0,  # Enabled
-                     'dependencies': '',
-                     'url': '',
-                     'description': '',
-                     'type': item_types['Zabbix agent'],
-                     }
-        # Populate trigger dependencies
-        if trigger.get('dependencies'):
-            z_trigger['dependencies'] = {'dependency': []}
-            for dep in trigger['dependencies']:
-                exp = trigger_refs.get(dep)
-                if not exp:
-                    sys.stderr.write("ERROR: Dependency trigger '%s' is not defined for trigger '%s'.\n" % (dep, trigger['name']))
-                    sys.exit(1)
-                z_trigger_dep = {'name': dep,
-                                 'expression': exp}
-                z_trigger['dependencies']['dependency'].append(z_trigger_dep)
+        z_trigger = create_trigger_from_definition(trigger, tmpl_name, trigger_refs)
         tmpl['triggers']['trigger'].append(z_trigger)
 
     print_xml(tmpl)
@@ -577,13 +609,20 @@ elif output == 'xml-lld':
     tmpl['templates']['template']['screens'] = {}
     tmpl['screens'] = {}
 
+    data = load_trigger_prototypes_and_macros(tmpl_name)
+    triggers_by_category = index_items_by_category(data['trigger_prototypes'])
+
     rules = []
     for rule_definition in DISCOVERY_RULES:
         item_prototypes = items_by_category[rule_definition['category']]
         item_prototypes = remove_helper_fields_from_items(item_prototypes)
+
+        trigger_prototypes = triggers_by_category[rule_definition['category']]
+        trigger_prototypes = remove_helper_fields_from_items(trigger_prototypes)
         if len(item_prototypes) > 0:
             rule = create_discovery_rule(name=rule_definition['name'], key=rule_definition['key'])
             rule['item_prototypes'] = {'item_prototype': item_prototypes}
+            rule['trigger_prototypes'] = {'trigger_prototype': trigger_prototypes} if trigger_prototypes else ''
             rules.append(rule)
     tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': rules}
 
