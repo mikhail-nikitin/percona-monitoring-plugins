@@ -181,7 +181,7 @@ def remove_duplicate_keys(items):
     return dictionary.values()
 
 
-def index_items_by_category(items):
+def index_objects_by_category(items):
     result = {}
 
     for category in ALL_ITEM_CATEGORIES:
@@ -232,11 +232,11 @@ def get_keyword_matching_regex(keyword):
     return re.compile(re.escape(format_item(keyword) + '-'), re.IGNORECASE)
 
 
-def remove_helper_fields_from_items(items):
-    return [remove_helper_fields_from_single_item(item) for item in items]
+def remove_helper_fields_from_objects(items):
+    return [remove_helper_fields_from_single_object(item) for item in items]
 
 
-def remove_helper_fields_from_single_item(item):
+def remove_helper_fields_from_single_object(item):
     if CATEGORY_HELPER_FIELD in item:
         item.pop(CATEGORY_HELPER_FIELD)
     if DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD in item:
@@ -601,7 +601,7 @@ elif output == 'xml-lld':
     items = convert_items_to_trapper_prototypes(items)
     items = remove_duplicate_keys(items)
     items = categorize_items(items)
-    items_by_category = index_items_by_category(items)
+    items_by_category = index_objects_by_category(items)
 
     tmpl['templates']['template']['items'] = {}
     tmpl['graphs'] = {}
@@ -610,15 +610,15 @@ elif output == 'xml-lld':
     tmpl['screens'] = {}
 
     data = load_trigger_prototypes_and_macros(tmpl_name)
-    triggers_by_category = index_items_by_category(data['trigger_prototypes'])
+    triggers_by_category = index_objects_by_category(data['trigger_prototypes'])
 
     rules = []
     for rule_definition in DISCOVERY_RULES:
         item_prototypes = items_by_category[rule_definition['category']]
-        item_prototypes = remove_helper_fields_from_items(item_prototypes)
+        item_prototypes = remove_helper_fields_from_objects(item_prototypes)
 
         trigger_prototypes = triggers_by_category[rule_definition['category']]
-        trigger_prototypes = remove_helper_fields_from_items(trigger_prototypes)
+        trigger_prototypes = remove_helper_fields_from_objects(trigger_prototypes)
         if len(item_prototypes) > 0:
             rule = create_discovery_rule(name=rule_definition['name'], key=rule_definition['key'])
             rule['item_prototypes'] = {'item_prototype': item_prototypes}
