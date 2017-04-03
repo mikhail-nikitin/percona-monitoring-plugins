@@ -407,6 +407,36 @@ def create_macros(macro_definitions):
     return [{'macro': macro, 'value': value} for macro, value in macro_definitions.items()]
 
 
+def convert_graphs_to_categorized_prototypes(graphs, categorized_item_prototypes):
+    item_by_short_key = dict([(get_static_part_of_key(item['key']), item) for item in categorized_item_prototypes])
+    return [convert_single_graph_to_prototype(graph, item_by_short_key) for graph in graphs]
+
+
+def convert_single_graph_to_prototype(graph, categorized_item_by_short_key):
+    graph['name'] += ' {#MYSQL_INSTANCE_NAME}'
+    category = None
+    if graph.get('graph_items', []) and graph['graph_items'].get('graph_item'):
+        for graph_item in graph['graph_items']['graph_item']:
+            base_item = categorized_item_by_short_key.get(graph_item['item']['key'], {})
+            graph_item['item']['key'] = base_item.get('key')
+            base_item_category = base_item[CATEGORY_HELPER_FIELD] if CATEGORY_HELPER_FIELD in base_item else COMMON_CATEGORY
+            if category is not None and base_item_category <> category:
+                sys.stderr.write(
+                    "ERROR: Graph '%s' spans multiple discovery items: %s, %s.\n" % (graph['name'], category, base_item_category))
+                sys.exit(1)
+            elif category is None:
+                category = base_item_category
+    graph[CATEGORY_HELPER_FIELD] = category if category else COMMON_CATEGORY
+    return graph
+
+
+def get_static_part_of_key(key):
+    if not key:
+        return key
+    prefix, rest = key.split('[', 1)
+    return prefix
+
+
 try:
     opts, args = getopt.getopt(sys.argv[1:], "ho:v", ["help", "output="])
 except getopt.GetoptError as err:
@@ -613,6 +643,9 @@ elif output == 'xml-lld':
 
     template_definition['items'] = {}
     template_definition['screens'] = {}
+    graphs = tmpl['graphs']['graph']
+    graph_prototypes = convert_graphs_to_categorized_prototypes(graphs, items)
+    graphs_by_category = index_objects_by_category(graph_prototypes)
     tmpl['graphs'] = {}
     tmpl['triggers'] = {}
     tmpl['screens'] = {}
@@ -630,10 +663,15 @@ elif output == 'xml-lld':
 
         trigger_prototypes = triggers_by_category[rule_definition['category']]
         trigger_prototypes = remove_helper_fields_from_objects(trigger_prototypes)
+
+        graph_prototypes = graphs_by_category[rule_definition['category']]
+        graph_prototypes = remove_helper_fields_from_objects(graph_prototypes)
+
         if len(item_prototypes) > 0:
             rule = create_discovery_rule(name=rule_definition['name'], key=rule_definition['key'])
             rule['item_prototypes'] = {'item_prototype': item_prototypes}
             rule['trigger_prototypes'] = {'trigger_prototype': trigger_prototypes} if trigger_prototypes else ''
+            rule['graph_prototypes'] = {'graph_prototype': graph_prototypes} if graph_prototypes else ''
             rules.append(rule)
     template_definition['discovery_rules'] = {'discovery_rule': rules}
 
