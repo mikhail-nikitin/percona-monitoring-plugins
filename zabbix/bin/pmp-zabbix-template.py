@@ -53,6 +53,11 @@ DISCOVERY_RULES = [{'key': 'instances[]', 'name': 'MySQL Instances', 'category':
                    {'key': 'instances[wsrep]', 'name': 'MySQL Galera instances', 'category': WSREP_CATEGORY}]
 ALL_ITEM_CATEGORIES = [rule['category'] for rule in DISCOVERY_RULES]
 
+GRAPH_NAME_SUFFIX = ' {#MYSQL_INSTANCE_NAME}'
+
+screen_resource_type = {'Graph': 0,
+                        'Graph prototype': 20}
+
 item_types = {'Zabbix agent': 0,
               'Zabbix agent (active)': 7,
               'Simple check': 3,
@@ -413,14 +418,14 @@ def convert_graphs_to_categorized_prototypes(graphs, categorized_item_prototypes
 
 
 def convert_single_graph_to_prototype(graph, categorized_item_by_short_key):
-    graph['name'] += ' {#MYSQL_INSTANCE_NAME}'
+    graph['name'] += GRAPH_NAME_SUFFIX
     category = None
     if graph.get('graph_items', []) and graph['graph_items'].get('graph_item'):
         for graph_item in graph['graph_items']['graph_item']:
             base_item = categorized_item_by_short_key.get(graph_item['item']['key'], {})
             graph_item['item']['key'] = base_item.get('key')
             base_item_category = base_item[CATEGORY_HELPER_FIELD] if CATEGORY_HELPER_FIELD in base_item else COMMON_CATEGORY
-            if category is not None and base_item_category <> category:
+            if category is not None and base_item_category != category:
                 sys.stderr.write(
                     "ERROR: Graph '%s' spans multiple discovery items: %s, %s.\n" % (graph['name'], category, base_item_category))
                 sys.exit(1)
@@ -447,8 +452,8 @@ def make_screens_use_graph_prototypes(screens):
 
 def convert_screen_items_to_graph_prototypes(screen_items):
     for screen_item in screen_items:
-        screen_item['resourcetype'] = 20
-        screen_item['resource']['name'] += ' {#MYSQL_INSTANCE_NAME}'
+        screen_item['resourcetype'] = screen_resource_type['Graph prototype']
+        screen_item['resource']['name'] += GRAPH_NAME_SUFFIX
     return screen_items
 
 
@@ -559,7 +564,7 @@ for graph in data['graphs']:
     tmpl['graphs']['graph'].append(z_graph)
 
     # Add graph to the screen
-    z_screen_item = {'resourcetype': 0,  # Graph
+    z_screen_item = {'resourcetype': screen_resource_type['Graph'],
                      'width': 500,
                      'height': 120,
                      'valign': 1,  # Middle
