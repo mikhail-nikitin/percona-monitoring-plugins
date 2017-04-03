@@ -265,14 +265,14 @@ def convert_single_item_to_trapper_prototype(item):
 
 
 def load_trigger_prototypes_and_macros(template_name):
-    data = {'trigger_prototypes': [], 'macros': []}
+    data = {'trigger_prototypes': [], 'macros': {}}
     try:
         with open(TRIGGER_PROTOTYPES) as f:
             data.update(yaml.safe_load(f))
     except IOError as err:
         sys.stderr.write(err)
 
-    result = {'trigger_prototypes': [], 'macros': []}
+    result = {'trigger_prototypes': [], 'macros': data['macros']}
     trigger_refs = get_trigger_expressions_by_names(data['trigger_prototypes'], template_name)
     for trigger in data['trigger_prototypes']:
         result['trigger_prototypes'].append(create_trigger_from_definition(trigger, template_name, trigger_refs))
@@ -570,6 +570,10 @@ def add_dependencies_to_trigger(trigger, name_dependencies, expressions_by_names
     return trigger
 
 
+def create_macros(macro_definitions):
+    return [{'macro': macro, 'value': value} for macro, value in macro_definitions.items()]
+
+
 # Generate output
 if output == 'xml':
     # Add extra items required by triggers
@@ -596,21 +600,26 @@ if output == 'xml':
     print_xml(tmpl)
 
 elif output == 'xml-lld':
-    items = tmpl['templates']['template']['items']['item']
+    template_definition = tmpl['templates']['template']
+
+    items = template_definition['items']['item']
     items.extend(load_extra_items())
     items = convert_items_to_trapper_prototypes(items)
     items = remove_duplicate_keys(items)
     items = categorize_items(items)
     items_by_category = index_objects_by_category(items)
 
-    tmpl['templates']['template']['items'] = {}
+    template_definition['items'] = {}
+    template_definition['screens'] = {}
     tmpl['graphs'] = {}
     tmpl['triggers'] = {}
-    tmpl['templates']['template']['screens'] = {}
     tmpl['screens'] = {}
 
     data = load_trigger_prototypes_and_macros(tmpl_name)
     triggers_by_category = index_objects_by_category(data['trigger_prototypes'])
+    macros = template_definition['macros']['macro'] if 'macros' in template_definition and 'macro' in template_definition['macros'] else []
+    macros.extend(create_macros(data['macros']))
+    template_definition['macros'] = {'macro': macros} if macros else ''
 
     rules = []
     for rule_definition in DISCOVERY_RULES:
@@ -624,7 +633,7 @@ elif output == 'xml-lld':
             rule['item_prototypes'] = {'item_prototype': item_prototypes}
             rule['trigger_prototypes'] = {'trigger_prototype': trigger_prototypes} if trigger_prototypes else ''
             rules.append(rule)
-    tmpl['templates']['template']['discovery_rules'] = {'discovery_rule': rules}
+    template_definition['discovery_rules'] = {'discovery_rule': rules}
 
     print_xml(tmpl)
 
