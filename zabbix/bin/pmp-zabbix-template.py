@@ -124,56 +124,6 @@ usage = """
     -h, --help                        Prints this menu and exits
     -o, --output [xml|config|xml-lld] Type of the output, default - xml. Xml-lld is for low-level item discovery
 """
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "ho:v", ["help", "output="])
-except getopt.GetoptError as err:
-    sys.stderr.write('%s\n%s' % (err, usage))
-    sys.exit(2)
-# Defaults
-output = 'xml'
-verbose = False
-for o, a in opts:
-    if o == "-v":
-        verbose = True
-    elif o in ("-h", "--help"):
-        print usage
-        sys.exit()
-    elif o in ("-o", "--output"):
-        output = a
-        if output not in ['xml', 'config', 'xml-lld']:
-            sys.stderr.write('invalid output type\n%s' % usage)
-            sys.exit(2)
-    else:
-        assert False, "unhandled option"
-
-# Read Cacti template definition file and load as YAML
-dfile = open(DEFINITION, 'r')
-data = []
-for line in dfile.readlines():
-    if not line.strip().startswith('#'):
-        data.append(line.replace('=>', ':'))
-data = yaml.safe_load(' '.join(data))
-
-# Define the base of Zabbix template
-tmpl = dict()
-app_name = data['name'].split()[0]
-tmpl_name = 'Percona %s Template' % data['name']
-tmpl['version'] = ZABBIX_VERSION
-tmpl['date'] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-tmpl['groups'] = {'group': {'name': 'Percona Templates'}}
-tmpl['screens'] = {'screen': {'name': '%s Graphs' % app_name,
-                              'hsize': 2,
-                              'vsize': int(round(len(data['graphs']) / 2.0)),
-                              'screen_items': {'screen_item': []}}}
-tmpl['templates'] = {'template': {'template': tmpl_name,
-                                  'name': tmpl_name,
-                                  'description': tmpl_name,
-                                  'groups': tmpl['groups'],
-                                  'applications': {'application': {'name': app_name}},
-                                  'items': {'item': []},
-                                  'macros': ''}}
-tmpl['graphs'] = {'graph': []}
-tmpl['triggers'] = ''
 
 
 def remove_duplicate_keys(items):
@@ -277,6 +227,7 @@ def load_trigger_prototypes_and_macros(template_name):
     for trigger in data['trigger_prototypes']:
         result['trigger_prototypes'].append(create_trigger_from_definition(trigger, template_name, trigger_refs))
     return result
+
 
 def create_discovery_rule(name, key, rule={}):
     result = {'name': name,
@@ -416,6 +367,97 @@ def get_data_type_for_extra_item(item):
     return item_data_type['decimal']
 
 
+def get_trigger_expressions_by_names(trigger_definitions, template_name):
+    return dict((t['name'], t['expression'].replace('TEMPLATE', template_name)) for t in trigger_definitions)
+
+
+def create_trigger_from_definition(trigger_definition, template_name, expressions_by_names={}):
+    result = {'name': trigger_definition['name'],
+              'expression': trigger_definition['expression'].replace('TEMPLATE', template_name),
+              'priority': trigger_severities[trigger_definition.get('severity', 'Not_classified')],
+              'status': 0,  # Enabled
+              'dependencies': '',
+              'url': '',
+              'description': '',
+              'type': item_types['Zabbix agent']}
+    if 'category' in trigger_definition:
+        result['category'] = trigger_definition['category']
+
+    if trigger_definition.get('dependencies', []):
+        add_dependencies_to_trigger(trigger=result,
+                                    name_dependencies=trigger_definition['dependencies'],
+                                    expressions_by_names=expressions_by_names)
+    return result
+
+
+def add_dependencies_to_trigger(trigger, name_dependencies, expressions_by_names={}):
+    trigger['dependencies'] = {'dependency': []}
+    for dep in name_dependencies:
+        exp = expressions_by_names.get(dep)
+        if not exp:
+            sys.stderr.write(
+                "ERROR: Dependency trigger '%s' is not defined for trigger '%s'.\n" % (dep, trigger['name']))
+            sys.exit(1)
+        dependency = {'name': dep, 'expression': exp}
+        trigger['dependencies']['dependency'].append(dependency)
+    return trigger
+
+
+def create_macros(macro_definitions):
+    return [{'macro': macro, 'value': value} for macro, value in macro_definitions.items()]
+
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "ho:v", ["help", "output="])
+except getopt.GetoptError as err:
+    sys.stderr.write('%s\n%s' % (err, usage))
+    sys.exit(2)
+# Defaults
+output = 'xml'
+verbose = False
+for o, a in opts:
+    if o == "-v":
+        verbose = True
+    elif o in ("-h", "--help"):
+        print usage
+        sys.exit()
+    elif o in ("-o", "--output"):
+        output = a
+        if output not in ['xml', 'config', 'xml-lld']:
+            sys.stderr.write('invalid output type\n%s' % usage)
+            sys.exit(2)
+    else:
+        assert False, "unhandled option"
+
+# Read Cacti template definition file and load as YAML
+dfile = open(DEFINITION, 'r')
+data = []
+for line in dfile.readlines():
+    if not line.strip().startswith('#'):
+        data.append(line.replace('=>', ':'))
+data = yaml.safe_load(' '.join(data))
+
+# Define the base of Zabbix template
+tmpl = dict()
+app_name = data['name'].split()[0]
+tmpl_name = 'Percona %s Template' % data['name']
+tmpl['version'] = ZABBIX_VERSION
+tmpl['date'] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+tmpl['groups'] = {'group': {'name': 'Percona Templates'}}
+tmpl['screens'] = {'screen': {'name': '%s Graphs' % app_name,
+                              'hsize': 2,
+                              'vsize': int(round(len(data['graphs']) / 2.0)),
+                              'screen_items': {'screen_item': []}}}
+tmpl['templates'] = {'template': {'template': tmpl_name,
+                                  'name': tmpl_name,
+                                  'description': tmpl_name,
+                                  'groups': tmpl['groups'],
+                                  'applications': {'application': {'name': app_name}},
+                                  'items': {'item': []},
+                                  'macros': ''}}
+tmpl['graphs'] = {'graph': []}
+tmpl['triggers'] = ''
+
 # Parse definition
 all_item_keys = set()
 x = y = 0
@@ -532,46 +574,6 @@ def print_xml(template_definition):
     # Convert and write XML
     xml = dict2xml.Converter(wrap='zabbix_export', indent='  ').build(template_definition)
     print '<?xml version="1.0" encoding="UTF-8"?>\n%s' % xml
-
-
-def get_trigger_expressions_by_names(trigger_definitions, template_name):
-    return dict((t['name'], t['expression'].replace('TEMPLATE', template_name)) for t in trigger_definitions)
-
-
-def create_trigger_from_definition(trigger_definition, template_name, expressions_by_names={}):
-    result = {'name': trigger_definition['name'],
-              'expression': trigger_definition['expression'].replace('TEMPLATE', template_name),
-              'priority': trigger_severities[trigger_definition.get('severity', 'Not_classified')],
-              'status': 0,  # Enabled
-              'dependencies': '',
-              'url': '',
-              'description': '',
-              'type': item_types['Zabbix agent']}
-    if 'category' in trigger_definition:
-        result['category'] = trigger_definition['category']
-
-    if trigger_definition.get('dependencies', []):
-        add_dependencies_to_trigger(trigger=result,
-                                    name_dependencies=trigger_definition['dependencies'],
-                                    expressions_by_names=expressions_by_names)
-    return result
-
-
-def add_dependencies_to_trigger(trigger, name_dependencies, expressions_by_names={}):
-    trigger['dependencies'] = {'dependency': []}
-    for dep in name_dependencies:
-        exp = expressions_by_names.get(dep)
-        if not exp:
-            sys.stderr.write(
-                "ERROR: Dependency trigger '%s' is not defined for trigger '%s'.\n" % (dep, trigger['name']))
-            sys.exit(1)
-        dependency = {'name': dep, 'expression': exp}
-        trigger['dependencies']['dependency'].append(dependency)
-    return trigger
-
-
-def create_macros(macro_definitions):
-    return [{'macro': macro, 'value': value} for macro, value in macro_definitions.items()]
 
 
 # Generate output
