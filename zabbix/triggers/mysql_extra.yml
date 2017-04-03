@@ -20,8 +20,20 @@ trigger_prototypes:
     expression: '{TEMPLATE:MySQL.Threads-connected[{#MYSQL_INSTANCE}].last(0)}/{TEMPLATE:MySQL.max-connections[{#MYSQL_INSTANCE}].last(0)}>({$CONNECTION_UTILIZATION_HIGH}/100)'
     severity: High
     dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} is down on {HOST.NAME}']
+
+  # MySQL active threads (the triggers need refining)
+  - name: MySQL {#MYSQL_INSTANCE_NAME} active threads more than {$ACTIVE_THREADS_AVERAGE} on {HOST.NAME}
+    expression: '{TEMPLATE:MySQL.Threads-running[{#MYSQL_INSTANCE}].last(0)}>{$ACTIVE_THREADS_AVERAGE}'
+    severity: Average
+    dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} active threads more than {$ACTIVE_THREADS_HIGH} on {HOST.NAME}']
+  - name: MySQL {#MYSQL_INSTANCE_NAME} active threads more than {$ACTIVE_THREADS_HIGH} on {HOST.NAME}
+    expression: '{TEMPLATE:MySQL.Threads-running[{#MYSQL_INSTANCE}].last(0)}>{$ACTIVE_THREADS_HIGH}'
+    severity: High
+    dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} is down on {HOST.NAME}']
 macros:
   '{$CONNECTION_UTILIZATION_AVERAGE}': 80
   '{$CONNECTION_UTILIZATION_HIGH}': 95
+  '{$ACTIVE_THREADS_AVERAGE}': 40
+  '{$ACTIVE_THREADS_HIGH}': 100
   '{$SLAVE_LAG_AVERAGE}': 300
   '{$SLAVE_LAG_HIGH}': 600
