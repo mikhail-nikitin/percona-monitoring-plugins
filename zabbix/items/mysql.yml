@@ -1,16 +1,28 @@
 #
-- name: Update Stats of MySQL Instance
+- name: Update Stats of MySQL
   key: send-parameters
   category: common
   is_unsigned: yes
   do_not_convert_to_trapper: yes
 
-- name: Ping MySQL Instance
+- name: Ping MySQL
   key: 'heartbeat'
   category: common
   is_bool: yes
   update_interval: 15
   do_not_convert_to_trapper: yes
+
+- name: Uptime of MySQL
+  key: uptime
+  category: common
+  unit: uptime
+  is_unsigned: yes
+
+- name: Last Stats Update of MySQL
+  key: last-update
+  category: common
+  unit: unixtime
+  is_unsigned: yes
 
 # Additional replication items
 - name: Slave IO Thread Running
