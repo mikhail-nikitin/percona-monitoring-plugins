@@ -28,12 +28,11 @@ PHP_SCRIPT = 'cacti/scripts/ss_get_mysql_stats.php'
 TRIGGERS = 'zabbix/triggers/mysql.yml'
 TRIGGER_PROTOTYPES = 'zabbix/triggers/mysql_extra.yml'
 EXTRA_ITEMS = 'zabbix/items/mysql.yml'
-EXTRA_ITEM_UPDATE_INTERVAL = 10
-ITEM_UPDATE_INTERVAL = 10
-PING_INTERVAL = 5
+ITEM_UPDATE_INTERVAL = 60  # update every minute
+EXTRA_ITEM_UPDATE_INTERVAL = ITEM_UPDATE_INTERVAL
 ITEM_KEEP_HISTORY_DAYS = 90
 ITEM_KEEP_TRENDS_DAYS = 365
-DISCOVERY_RULE_DELAY = 10
+DISCOVERY_RULE_DELAY = 300  # discover new instances every 5 minutes
 
 CATEGORY_HELPER_FIELD = 'category'
 DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD = 'do_not_convert_to_trapper'
