@@ -437,6 +437,21 @@ def get_static_part_of_key(key):
     return prefix
 
 
+def make_screens_use_graph_prototypes(screens):
+    for screen in screens:
+        if screen.get('screen_items', {'screen_item': []}) and screen['screen_items'].get('screen_item'):
+            screen['screen_items']['screen_item'] = convert_screen_items_to_graph_prototypes(
+                screen['screen_items']['screen_item'])
+    return screens
+
+
+def convert_screen_items_to_graph_prototypes(screen_items):
+    for screen_item in screen_items:
+        screen_item['resourcetype'] = 20
+        screen_item['resource']['name'] += ' {#MYSQL_INSTANCE_NAME}'
+    return screen_items
+
+
 try:
     opts, args = getopt.getopt(sys.argv[1:], "ho:v", ["help", "output="])
 except getopt.GetoptError as err:
@@ -648,7 +663,8 @@ elif output == 'xml-lld':
     graphs_by_category = index_objects_by_category(graph_prototypes)
     tmpl['graphs'] = {}
     tmpl['triggers'] = {}
-    tmpl['screens'] = {}
+    if tmpl.get('screens', {'screen': []}).get('screen'):
+        tmpl['screens']['screen'] = make_screens_use_graph_prototypes([tmpl['screens']['screen']])
 
     data = load_trigger_prototypes_and_macros(tmpl_name)
     triggers_by_category = index_objects_by_category(data['trigger_prototypes'])
