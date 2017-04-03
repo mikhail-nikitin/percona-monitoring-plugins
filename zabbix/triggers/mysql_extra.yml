@@ -10,6 +10,18 @@ trigger_prototypes:
     category: common
     expression: '{TEMPLATE:MySQL.heartbeat[{#MYSQL_INSTANCE}].last(0)}<>1'
     severity: Disaster
+
+  # MySQL connections
+  - name: MySQL {#MYSQL_INSTANCE_NAME} connections utilization more than {$CONNECTION_UTILIZATION_AVERAGE}% on {HOST.NAME}
+    expression: '{TEMPLATE:MySQL.Threads-connected[{#MYSQL_INSTANCE}].last(0)}/{TEMPLATE:MySQL.max-connections[{#MYSQL_INSTANCE}].last(0)}>({$CONNECTION_UTILIZATION_AVERAGE}/100)'
+    severity: Average
+    dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} connections utilization more than {$CONNECTION_UTILIZATION_HIGH}% on {HOST.NAME}']
+  - name: MySQL {#MYSQL_INSTANCE_NAME} connections utilization more than {$CONNECTION_UTILIZATION_HIGH}% on {HOST.NAME}
+    expression: '{TEMPLATE:MySQL.Threads-connected[{#MYSQL_INSTANCE}].last(0)}/{TEMPLATE:MySQL.max-connections[{#MYSQL_INSTANCE}].last(0)}>({$CONNECTION_UTILIZATION_HIGH}/100)'
+    severity: High
+    dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} is down on {HOST.NAME}']
 macros:
-  - '{$SLAVE_LAG_AVERAGE}': 300
-  - '{$SLAVE_LAG_HIGH}': 600
+  '{$CONNECTION_UTILIZATION_AVERAGE}': 80
+  '{$CONNECTION_UTILIZATION_HIGH}': 95
+  '{$SLAVE_LAG_AVERAGE}': 300
+  '{$SLAVE_LAG_HIGH}': 600
