@@ -6,7 +6,7 @@
 
 trigger_prototypes:
   # MySQL process
-  - name: MySQL {#MYSQL_INSTANCE} is down on {HOST.NAME}
+  - name: MySQL {#MYSQL_INSTANCE_NAME} is down on {HOST.NAME}
     category: common
     expression: '{TEMPLATE:MySQL.heartbeat[{#MYSQL_INSTANCE}].last(0)}<>1'
     severity: Disaster
