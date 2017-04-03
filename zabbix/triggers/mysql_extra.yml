@@ -7,7 +7,6 @@
 trigger_prototypes:
   # MySQL process
   - name: MySQL {#MYSQL_INSTANCE_NAME} is down on {HOST.NAME}
-    category: common
     expression: '{TEMPLATE:MySQL.heartbeat[{#MYSQL_INSTANCE}].last(0)}<>1'
     severity: Disaster
 
@@ -30,6 +29,39 @@ trigger_prototypes:
     expression: '{TEMPLATE:MySQL.Threads-running[{#MYSQL_INSTANCE}].last(0)}>{$ACTIVE_THREADS_HIGH}'
     severity: High
     dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} is down on {HOST.NAME}']
+
+  # MySQL replication
+  - name: MySQL {#MYSQL_INSTANCE_NAME} slave lag more than {$SLAVE_LAG_AVERAGE} on {HOST.NAME}
+    category: slave
+    expression: '{TEMPLATE:MySQL.slave-lag[{#MYSQL_INSTANCE}].last(0)}>{$SLAVE_LAG_AVERAGE}'
+    severity: Average
+    dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} slave lag more than {$SLAVE_LAG_HIGH} on {HOST.NAME}']
+  - name: MySQL {#MYSQL_INSTANCE_NAME} slave lag more than {$SLAVE_LAG_HIGH} on {HOST.NAME}
+    category: slave
+    expression: '{TEMPLATE:MySQL.slave-lag[{#MYSQL_INSTANCE}].last(0)}>{$SLAVE_LAG_HIGH}'
+    severity: High
+    dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} slave stopped for {$SLAVE_STOP_TIME_HIGH} on {HOST.NAME}']
+  - name: MySQL {#MYSQL_INSTANCE_NAME} slave stopped for {$SLAVE_STOP_TIME_AVERAGE} on {HOST.NAME}
+    category: slave
+    expression: '({TEMPLATE:MySQL.slave-io-running[{#MYSQL_INSTANCE}].last(0)}=0 or {TEMPLATE:MySQL.slave-sql-running[{#MYSQL_INSTANCE}].last(0)}=0) and ({TEMPLATE:MySQL.slave-io-running[{#MYSQL_INSTANCE}].avg({$SLAVE_STOP_TIME_AVERAGE})}<{$SLAVE_MIN_RUNNING_RATIO} or {TEMPLATE:MySQL.slave-sql-running[{#MYSQL_INSTANCE}].avg({$SLAVE_STOP_TIME_AVERAGE})}<{$SLAVE_MIN_RUNNING_RATIO})'
+    severity: High
+    dependencies: ['MySQL {#MYSQL_INSTANCE_NAME} slave stopped for {$SLAVE_STOP_TIME_HIGH} on {HOST.NAME}']
+  - name: MySQL {#MYSQL_INSTANCE_NAME} slave stopped for {$SLAVE_STOP_TIME_HIGH} on {HOST.NAME}
+    category: slave
+    expression: '({TEMPLATE:MySQL.slave-io-running[{#MYSQL_INSTANCE}].last(0)}=0 or {TEMPLATE:MySQL.slave-sql-running[{#MYSQL_INSTANCE}].last(0)}=0) and ({TEMPLATE:MySQL.slave-io-running[{#MYSQL_INSTANCE}].avg({$SLAVE_STOP_TIME_HIGH})}<{$SLAVE_MIN_RUNNING_RATIO} or {TEMPLATE:MySQL.slave-sql-running[{#MYSQL_INSTANCE}].avg({$SLAVE_STOP_TIME_HIGH})}<{$SLAVE_MIN_RUNNING_RATIO})'
+    severity: High
+    dependencies:
+      - MySQL {#MYSQL_INSTANCE_NAME} IO Error on {HOST.NAME}
+      - MySQL {#MYSQL_INSTANCE_NAME} SQL Error on {HOST.NAME}
+  - name: MySQL {#MYSQL_INSTANCE_NAME} IO Error on {HOST.NAME}
+    category: slave
+    expression: '{TEMPLATE:MySQL.slave-last-io-error[{#MYSQL_INSTANCE}].regexp(".")} and {TEMPLATE:MySQL.slave-io-running[{#MYSQL_INSTANCE}].avg({$SLAVE_CONNECTION_TIMEOUT})}<{$SLAVE_MIN_RUNNING_RATIO}'
+    severity: High
+  - name: MySQL {#MYSQL_INSTANCE_NAME} SQL Error on {HOST.NAME}
+    category: slave
+    expression: '{TEMPLATE:MySQL.slave-last-sql-error[{#MYSQL_INSTANCE}].regexp(".")}'
+    severity: High
+
 macros:
   '{$CONNECTION_UTILIZATION_AVERAGE}': 80
   '{$CONNECTION_UTILIZATION_HIGH}': 95
@@ -37,3 +69,8 @@ macros:
   '{$ACTIVE_THREADS_HIGH}': 100
   '{$SLAVE_LAG_AVERAGE}': 300
   '{$SLAVE_LAG_HIGH}': 600
+  '{$SLAVE_CONNECTION_TIMEOUT}': 30
+  '{$SLAVE_STOP_TIME_AVERAGE}': 2m
+  '{$SLAVE_STOP_TIME_HIGH}': 5m
+  '{$SLAVE_MIN_RUNNING_RATIO}': 0.15
+
