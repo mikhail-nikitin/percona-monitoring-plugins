@@ -28,11 +28,11 @@ PHP_SCRIPT = 'cacti/scripts/ss_get_mysql_stats.php'
 TRIGGERS = 'zabbix/triggers/mysql.yml'
 TRIGGER_PROTOTYPES = 'zabbix/triggers/mysql_extra.yml'
 EXTRA_ITEMS = 'zabbix/items/mysql.yml'
-ITEM_UPDATE_INTERVAL = 60  # update every minute
+ITEM_UPDATE_INTERVAL = 300  # update every 5 minutes
 EXTRA_ITEM_UPDATE_INTERVAL = ITEM_UPDATE_INTERVAL
-ITEM_KEEP_HISTORY_DAYS = 90
-ITEM_KEEP_TRENDS_DAYS = 365
-DISCOVERY_RULE_DELAY = 300  # discover new instances every 5 minutes
+ITEM_KEEP_HISTORY_DAYS = 2
+ITEM_KEEP_TRENDS_DAYS = 90
+DISCOVERY_RULE_DELAY = 1800  # discover new instances every half hour
 
 CATEGORY_HELPER_FIELD = 'category'
 DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD = 'do_not_convert_to_trapper'
@@ -339,6 +339,8 @@ def load_extra_items():
                                       value_storage_type=item_value_storage_type[item['value_storage_type']] if 'value_storage_type' in item else item_value_storage_type['As is'],
                                       data_type=get_data_type_for_extra_item(item),
                                       update_interval=item['update_interval'] if 'update_interval' in item else EXTRA_ITEM_UPDATE_INTERVAL,
+                                      history=item['history'] if 'history' in item else ITEM_KEEP_HISTORY_DAYS,
+                                      trends=item['trends'] if 'trends' in item else ITEM_KEEP_TRENDS_DAYS,
                                       unit=item['unit'] if 'unit' in item else '')
             if DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD in item:
                 result_item[DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD] = item[DO_NOT_CONVERT_TO_TRAPPER_HELPER_FIELD]

@@ -9,7 +9,9 @@
   key: 'heartbeat'
   category: common
   is_bool: yes
-  update_interval: 15
+  update_interval: 60
+  history: 1
+  trends: 1
   do_not_convert_to_trapper: yes
 
 - name: Uptime of MySQL
